@@ -124,6 +124,24 @@ async function runSync() {
         eventAt: eventTime(l)
       });
     }
+
+    // Follow-up reminder — the lead's next follow-up date has arrived (or passed) and the
+    // lead is still open. Keyed per (lead, follow-up date) so each reminder fires only once.
+    const fu = toDate(l.followUp);
+    const closedState = /junk|lost|completed|order\s*confirmed/i.test(status);
+    if (fu && !closedState) {
+      const endToday = new Date(); endToday.setHours(23, 59, 59, 999);
+      if (fu.getTime() <= endToday.getTime()) {
+        add(mgr, `lead-followup:${code}:${fu.toISOString().slice(0, 10)}`, {
+          type: 'LEAD_FOLLOWUP_DUE',
+          title: 'Follow-up Reminder',
+          message: `Follow-up for Lead ${code}${has(l.name) ? ` (${l.name})` : ''} is due on ${shortDate(l.followUp)}.`,
+          entityType: 'lead',
+          entityId: code,
+          eventAt: fu
+        });
+      }
+    }
   }
 
   // --- Appointments: scheduled / rescheduled / completed ----------------------------

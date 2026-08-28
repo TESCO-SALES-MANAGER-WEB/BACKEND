@@ -19,7 +19,8 @@ const NotificationSchema = new mongoose.Schema(
         'QUOTATION_REJECTED',
         'ORDER_CONFIRMED',
         'PAYMENT_RECEIVED',
-        'PAYMENT_UPDATED'
+        'PAYMENT_UPDATED',
+        'LEAD_FOLLOWUP_DUE'
       ],
       required: true
     },

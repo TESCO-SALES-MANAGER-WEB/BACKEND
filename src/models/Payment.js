@@ -44,7 +44,7 @@ const PaymentSchema = new mongoose.Schema(
     notesLog: { type: Array, default: [] },   // [{ text, timestamp }]
     reminderSentAt: { type: String, default: '' },
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 
 module.exports = mongoose.model('Payment', PaymentSchema);

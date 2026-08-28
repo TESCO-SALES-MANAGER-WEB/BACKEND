@@ -31,7 +31,7 @@ const LeadSchema = new mongoose.Schema(
     appointmentRemark: String,
     history: [HistorySchema],
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 
 module.exports = mongoose.model('Lead', LeadSchema);
