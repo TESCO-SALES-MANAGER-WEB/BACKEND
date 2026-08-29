@@ -23,7 +23,7 @@ router.use('/auth', authRoutes);
 
 // Shared collections (same data as the Coordinator CRM)
 router.use('/leads', makeCrud(Lead));
-router.use('/quotations', makeCrud(Quotation));
+router.use('/quotations', makeCrud(Quotation, { listExclude: '-fileData' }));
 router.use('/appointments', makeCrud(Appointment, { idField: '_id' }));
 router.use('/projects', makeCrud(Project));
 router.use('/payments', makeCrud(Payment));

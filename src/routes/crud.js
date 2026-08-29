@@ -5,10 +5,23 @@ module.exports = function makeCrud(Model, opts = {}) {
   const router = express.Router();
   const useMongoId = opts.idField === '_id';
 
-  // GET / — list all
+  // GET / — list all (optionally excluding heavy fields like base64 file data)
   router.get('/', async (req, res) => {
     try {
-      res.json(await Model.find().sort({ createdAt: 1 }));
+      res.json(await Model.find().select(opts.listExclude || '').sort({ createdAt: 1 }));
+    } catch (e) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
+  // GET /:id — a single document WITH all fields (heavy fields included, for preview/download)
+  router.get('/:id', async (req, res) => {
+    try {
+      const doc = useMongoId
+        ? await Model.findById(req.params.id)
+        : await Model.findOne({ id: req.params.id });
+      if (!doc) return res.status(404).json({ message: 'Not found' });
+      res.json(doc);
     } catch (e) {
       res.status(500).json({ message: e.message });
     }
