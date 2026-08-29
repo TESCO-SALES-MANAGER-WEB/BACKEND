@@ -9,6 +9,7 @@ const QuotationSchema = new mongoose.Schema(
     project: String,
     amount: String,
     gst: String,
+    priority: { type: String, default: 'Medium' }, // High / Medium / Low
     approvalStatus: { type: String, default: 'Pending' },
     quotationStatus: { type: String, default: 'In Preparation' },
     revision: { type: String, default: 'Rev 0' },

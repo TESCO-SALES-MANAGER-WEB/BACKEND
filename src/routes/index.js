@@ -22,7 +22,19 @@ router.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().to
 router.use('/auth', authRoutes);
 
 // Shared collections (same data as the Coordinator CRM)
-router.use('/leads', makeCrud(Lead));
+// Next sequential lead id: LD-0018 after LD-0017. Only real sequential ids count —
+// legacy timestamp ids (13-digit) are ignored so they never poison the sequence.
+async function nextLeadId(Model) {
+  const rows = await Model.find({ id: /^LD-\d+$/ }).select('id').lean();
+  let max = 0;
+  for (const r of rows) {
+    const n = parseInt(String(r.id).replace(/\D/g, ''), 10);
+    if (!Number.isNaN(n) && n < 1000000 && n > max) max = n;
+  }
+  return `LD-${String(max + 1).padStart(4, '0')}`;
+}
+
+router.use('/leads', makeCrud(Lead, { genId: nextLeadId }));
 router.use('/quotations', makeCrud(Quotation, { listExclude: '-fileData' }));
 router.use('/appointments', makeCrud(Appointment, { idField: '_id' }));
 router.use('/projects', makeCrud(Project));

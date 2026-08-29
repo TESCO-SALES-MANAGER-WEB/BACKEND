@@ -20,7 +20,10 @@ const NotificationSchema = new mongoose.Schema(
         'ORDER_CONFIRMED',
         'PAYMENT_RECEIVED',
         'PAYMENT_UPDATED',
-        'LEAD_FOLLOWUP_DUE'
+        'LEAD_FOLLOWUP_DUE',
+        'PAYMENT_DUE_SOON',
+        'PAYMENT_DUE_TODAY',
+        'PAYMENT_OVERDUE'
       ],
       required: true
     },

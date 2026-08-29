@@ -27,9 +27,19 @@ module.exports = function makeCrud(Model, opts = {}) {
     }
   });
 
-  // POST / — create one
+  // POST / — create one (optionally assigning a fresh server-generated business id)
   router.post('/', async (req, res) => {
     try {
+      if (typeof opts.genId === 'function') {
+        const body = { ...(req.body || {}) };
+        delete body.id; // always assign a fresh id on create (ignore any client-supplied id)
+        for (let i = 0; i < 50; i++) {
+          body.id = await opts.genId(Model);
+          try { return res.status(201).json(await Model.create(body)); }
+          catch (e) { if (e && e.code === 11000) continue; throw e; }
+        }
+        throw new Error('Could not allocate a unique id');
+      }
       res.status(201).json(await Model.create(req.body));
     } catch (e) {
       res.status(400).json({ message: e.message });
