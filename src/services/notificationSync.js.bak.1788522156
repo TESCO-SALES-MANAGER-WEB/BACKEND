@@ -26,7 +26,7 @@ const eventTime = (doc, ...prefer) => {
 const shortDate = (v) => {
   const d = toDate(v);
   if (!d) return String(v || '').trim();
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' });
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 };
 
 // 850000 / "₹8,50,000" -> "₹8,50,000"
