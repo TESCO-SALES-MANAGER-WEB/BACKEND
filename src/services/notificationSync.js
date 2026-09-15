@@ -1,4 +1,5 @@
 const Notification = require('../models/Notification');
+const { notifyNewDocs } = require('../utils/push');
 const Lead = require('../models/Lead');
 const Appointment = require('../models/Appointment');
 const Quotation = require('../models/Quotation');
@@ -328,10 +329,24 @@ async function runSync() {
 
   if (ops.length) {
     // ordered:false so one duplicate-key race can't abort the rest of the batch.
-    await Notification.bulkWrite(ops, { ordered: false }).catch((e) => {
+    const result = await Notification.bulkWrite(ops, { ordered: false }).catch((e) => {
       // Duplicate-key errors are expected/benign under concurrency — swallow only those.
       if (!e || e.code !== 11000) throw e;
+      return (e && e.result) || null; // keep partial result so new inserts still push
     });
+    // Mirror every NEWLY-INSERTED notification as a system push (fire-and-forget).
+    try {
+      const upserted = result && (result.upsertedIds || (result.getUpsertedIds && result.getUpsertedIds()));
+      let indexes = [];
+      if (Array.isArray(upserted)) indexes = upserted.map((u) => u.index);
+      else if (upserted && typeof upserted === 'object') indexes = Object.keys(upserted).map(Number);
+      const newDocs = indexes
+        .map((i) => ops[i] && ops[i].updateOne && ops[i].updateOne.update && ops[i].updateOne.update.$setOnInsert)
+        .filter(Boolean);
+      if (newDocs.length) notifyNewDocs(newDocs);
+    } catch (e) {
+      console.warn('[push] dispatch skipped:', e && e.message);
+    }
   }
 }
 

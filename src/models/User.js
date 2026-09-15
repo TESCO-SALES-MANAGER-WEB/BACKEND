@@ -19,6 +19,9 @@ const userSchema = new mongoose.Schema(
     resetOtpVerified: { type: Boolean, default: false, select: false },
     lastLoginAt: { type: Date },
     isActive: { type: Boolean, default: true },
+    // Registered Expo push tokens (one per signed-in device). Used to deliver
+    // system/FCM notifications that mirror this user's in-app notifications.
+    pushTokens: { type: [String], default: [] },
   },
   { timestamps: true }
 );

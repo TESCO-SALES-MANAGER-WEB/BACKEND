@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const router = express.Router();
 const User = require('../models/User');
 const { protect, JWT_SECRET } = require('../middleware/auth');
+const { syncUserName } = require('../utils/syncUserName');
 
 // Optional email helper. Loaded defensively so a missing util or an un-installed
 // @sendgrid/mail dependency can never crash the whole auth router at load time —
@@ -67,15 +68,47 @@ router.get('/me', protect, (req, res) => res.json({ success: true, user: req.use
 router.patch('/profile', protect, async (req, res) => {
   try {
     const { name, email } = req.body || {};
+    const prevName = req.user.name; // capture before change for retroactive sync
     if (typeof name === 'string' && name.trim()) req.user.name = name.trim();
     if (typeof email === 'string' && email.trim()) req.user.email = email.trim().toLowerCase();
     await req.user.save();
+    // A display-name change must retroactively update this person's name on all
+    // existing leads/appointments/etc. (records reference people by name).
+    if (req.user.name && req.user.name !== prevName) {
+      await syncUserName(prevName, req.user.name).catch((e) =>
+        console.warn('[profile] name sync failed:', e && e.message)
+      );
+    }
     return res.json({ success: true, user: req.user.toSafeJSON() });
   } catch (err) {
     if (err && err.code === 11000) {
       return res.status(409).json({ success: false, message: 'That email is already in use.' });
     }
     return res.status(400).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/auth/push-token  (protected) — register this device's Expo push token
+router.post('/push-token', protect, async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token || typeof token !== 'string') return res.status(400).json({ success: false, message: 'token is required' });
+    await User.updateOne({ _id: req.user._id }, { $addToSet: { pushTokens: token } });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/auth/push-token  (protected) — unregister on logout
+router.delete('/push-token', protect, async (req, res) => {
+  try {
+    const { token } = req.body || {};
+    if (!token) return res.status(400).json({ success: false, message: 'token is required' });
+    await User.updateOne({ _id: req.user._id }, { $pull: { pushTokens: token } });
+    return res.json({ success: true });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 
