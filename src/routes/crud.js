@@ -47,19 +47,29 @@ module.exports = function makeCrud(Model, opts = {}) {
   });
 
   // POST /bulk — upsert an array (sync from frontend state)
+  // A stale snapshot must never wipe an assignment another portal just made, so a
+  // blank/"Unassigned" manager in a bulk payload is NOT allowed to overwrite a stored
+  // real manager. A genuine re-assignment (a real name) still applies; explicit un-assign
+  // goes through the targeted PUT below, not bulk.
+  const isBlankAssignment = (v) => v == null || String(v).trim() === '' || /^unassigned$/i.test(String(v).trim());
   router.post('/bulk', async (req, res) => {
     try {
       const arr = req.body;
       if (!Array.isArray(arr)) return res.status(400).json({ message: 'Expected an array' });
       const ops = arr
         .filter((d) => (useMongoId ? d._id : d.id))
-        .map((d) => ({
-          updateOne: {
-            filter: useMongoId ? { _id: d._id } : { id: d.id },
-            update: { $set: d },
-            upsert: true,
-          },
-        }));
+        .map((d) => {
+          const set = { ...d };
+          if (isBlankAssignment(set.manager)) delete set.manager;
+          if (isBlankAssignment(set.assignedTo)) delete set.assignedTo;
+          return {
+            updateOne: {
+              filter: useMongoId ? { _id: d._id } : { id: d.id },
+              update: { $set: set },
+              upsert: true,
+            },
+          };
+        });
       if (ops.length) await Model.bulkWrite(ops);
       res.json({ success: true, count: ops.length });
     } catch (e) {
