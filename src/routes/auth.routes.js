@@ -32,6 +32,10 @@ router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body || {};
     const role = req.body.role || 'Sales Manager';
+    // Optional: the designation the user chose at login (Manager / Business Development
+    // Executive). Managers and BDEs share the 'Sales Manager' role and differ only by
+    // `designation`, so when the client sends it we verify the account matches.
+    const selectedDesignation = req.body.designation;
     if (!email || !password) {
       return res.status(400).json({ success: false, message: 'Please enter your email/ID and password' });
     }
@@ -50,6 +54,22 @@ router.post('/login', async (req, res) => {
     // Defense-in-depth: never issue a token for an account whose role does not match.
     if (user.role !== role) {
       return res.status(403).json({ success: false, message: `You are not registered as ${role}` });
+    }
+    // Designation gate — only enforced when the client specifies which role it is logging
+    // in as (the web login does; the mobile app and older clients omit it, so their
+    // behaviour is unchanged). A missing/blank designation on the account means a plain
+    // Manager (the schema default), so existing Manager accounts keep working.
+    if (selectedDesignation) {
+      const isBDE = (d) => /business development|\bbde\b/i.test(String(d || ''));
+      const accountIsBDE = isBDE(user.designation);
+      const wantsBDE = isBDE(selectedDesignation);
+      if (accountIsBDE !== wantsBDE) {
+        const correct = accountIsBDE ? 'Business Development Executive' : 'Manager';
+        return res.status(403).json({
+          success: false,
+          message: `This account is registered as ${correct}. Please select "${correct}" and try again.`,
+        });
+      }
     }
 
     user.lastLoginAt = new Date();
