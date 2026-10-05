@@ -34,4 +34,14 @@ const LeadSchema = new mongoose.Schema(
   { timestamps: true, strict: false }
 );
 
+
+// Indexes for fast lookups/sorting on the fields the CRM filters & sorts by
+// (id already has a unique index). No effect on data or API shape — speed only.
+LeadSchema.index({ createdAt: -1 });
+LeadSchema.index({ status: 1 });
+LeadSchema.index({ manager: 1 });
+LeadSchema.index({ followUp: 1 });
+LeadSchema.index({ phone: 1 });
+LeadSchema.index({ email: 1 });
+
 module.exports = mongoose.model('Lead', LeadSchema);

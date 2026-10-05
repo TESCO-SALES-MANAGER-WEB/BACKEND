@@ -8,7 +8,8 @@ module.exports = function makeCrud(Model, opts = {}) {
   // GET / — list all (optionally excluding heavy fields like base64 file data)
   router.get('/', async (req, res) => {
     try {
-      res.json(await Model.find().select(opts.listExclude || '').sort({ createdAt: 1 }));
+      const sel = [opts.listExclude || '', req.query.light ? '-history' : ''].filter(Boolean).join(' ');
+      res.json(await Model.find().select(sel).sort({ createdAt: 1 }).lean());
     } catch (e) {
       res.status(500).json({ message: e.message });
     }
