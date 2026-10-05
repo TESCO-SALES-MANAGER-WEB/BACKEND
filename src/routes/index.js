@@ -34,7 +34,7 @@ async function nextLeadId(Model) {
   return `LD-${String(max + 1).padStart(4, '0')}`;
 }
 
-router.use('/leads', makeCrud(Lead, { genId: nextLeadId }));
+router.use('/leads', makeCrud(Lead, { genId: nextLeadId, historyAppendOnly: true }));
 router.use('/quotations', makeCrud(Quotation, { listExclude: '-fileData' }));
 router.use('/appointments', makeCrud(Appointment, { idField: '_id' }));
 router.use('/projects', makeCrud(Project));

@@ -63,6 +63,7 @@ module.exports = function makeCrud(Model, opts = {}) {
           const set = { ...d };
           if (isBlankAssignment(set.manager)) delete set.manager;
           if (isBlankAssignment(set.assignedTo)) delete set.assignedTo;
+          if (opts.historyAppendOnly) delete set.history; // history is append-only (PUT), never via bulk
           return {
             updateOne: {
               filter: useMongoId ? { _id: d._id } : { id: d.id },
@@ -81,9 +82,19 @@ module.exports = function makeCrud(Model, opts = {}) {
   // PUT /:id — update one
   router.put('/:id', async (req, res) => {
     try {
+      const body = { ...req.body };
+      // history is append-only (never shrink): a history-light client snapshot must not
+      // replace a stored history with a shorter array. Only runs for history-bearing models.
+      if (opts.historyAppendOnly && Array.isArray(body.history)) {
+        const cur = useMongoId
+          ? await Model.findById(req.params.id).select('history').lean()
+          : await Model.findOne({ id: req.params.id }).select('history').lean();
+        const stored = (cur && Array.isArray(cur.history)) ? cur.history.length : 0;
+        if (body.history.length < stored) delete body.history;
+      }
       const doc = useMongoId
-        ? await Model.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true })
-        : await Model.findOneAndUpdate({ id: req.params.id }, { $set: req.body }, { new: true });
+        ? await Model.findByIdAndUpdate(req.params.id, { $set: body }, { new: true })
+        : await Model.findOneAndUpdate({ id: req.params.id }, { $set: body }, { new: true });
       if (!doc) return res.status(404).json({ message: 'Not found' });
       res.json(doc);
     } catch (e) {
