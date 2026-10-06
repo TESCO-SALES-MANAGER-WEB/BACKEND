@@ -81,13 +81,42 @@ module.exports = function makeCrud(Model, opts = {}) {
     try {
       const arr = req.body;
       if (!Array.isArray(arr)) return res.status(400).json({ message: 'Expected an array' });
-      const ops = arr
-        .filter((d) => (useMongoId ? d._id : d.id))
+      const valid = arr.filter((d) => (useMongoId ? d._id : d.id));
+
+      // Leads (historyAppendOnly): a whole-array bulk sync must NEVER revert an assignment
+      // or truncate a timeline — those are owned by the targeted PUT /:id. Bulk only SEEDS
+      // manager/assignedTo on insert, and accepts history only when it GROWS (no shrink).
+      if (opts.historyAppendOnly) {
+        const ids = valid.map((d) => d.id).filter(Boolean);
+        const existing = ids.length ? await Model.aggregate([
+          { $match: { id: { $in: ids } } },
+          { $project: { id: 1, hlen: { $size: { $ifNull: ['$history', []] } } } },
+        ]) : [];
+        const hlen = new Map(existing.map((e) => [e.id, e.hlen]));
+        const known = new Set(existing.map((e) => e.id));
+        const ops = valid.map((d) => {
+          const { id, _id, manager, assignedTo, history, ...rest } = d;
+          const set = { ...rest };
+          delete set._id;
+          if (Array.isArray(history) && (!known.has(id) || history.length > (hlen.get(id) || 0))) {
+            set.history = history;
+          }
+          const update = { $set: set };
+          const onInsert = {};
+          if (manager !== undefined) onInsert.manager = manager;
+          if (assignedTo !== undefined) onInsert.assignedTo = assignedTo;
+          if (Object.keys(onInsert).length) update.$setOnInsert = onInsert;
+          return { updateOne: { filter: { id }, update, upsert: true } };
+        });
+        if (ops.length) await Model.bulkWrite(ops);
+        return res.json({ success: true, count: ops.length });
+      }
+
+      const ops = valid
         .map((d) => {
           const set = { ...d };
           if (isBlankAssignment(set.manager)) delete set.manager;
           if (isBlankAssignment(set.assignedTo)) delete set.assignedTo;
-          if (opts.historyAppendOnly) delete set.history; // history is append-only (PUT), never via bulk
           return {
             updateOne: {
               filter: useMongoId ? { _id: d._id } : { id: d.id },
