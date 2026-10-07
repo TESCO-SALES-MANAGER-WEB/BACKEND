@@ -15,6 +15,7 @@ const Pipeline = require('../models/Pipeline');
 
 const notificationsRoutes = require('./notifications.routes');
 const authRoutes = require('./auth.routes');
+const waRoutes = require('./wa.routes');
 
 router.get('/health', (req, res) => res.json({ status: 'ok', time: new Date().toISOString() }));
 
@@ -52,5 +53,10 @@ router.use('/team', makeCrud(TeamTask));
 
 // DB-backed, role-scoped (Sales Manager) per-manager notifications
 router.use('/notifications', notificationsRoutes);
+
+// WhatsApp overdue-lead alerts (Meta Cloud API) — hit by an EXTERNAL cron every 5-10 min.
+// Secret-protected; adds a WhatsApp delivery channel on top of the existing in-app
+// notifications (does not modify the overdue/follow-up/assignment logic).
+router.use('/wa', waRoutes);
 
 module.exports = router;

@@ -25,6 +25,12 @@ const userSchema = new mongoose.Schema(
     // Registered Expo push tokens (one per signed-in device). Used to deliver
     // system/FCM notifications that mirror this user's in-app notifications.
     pushTokens: { type: [String], default: [] },
+    // WhatsApp overdue-lead alerts (Meta Cloud API). A Manager/BDE receives WhatsApp
+    // overdue reminders ONLY when a number is set AND they have opted in. Missing either
+    // => the overdue dispatcher skips WhatsApp for them and logs the reason. Normal
+    // personal WhatsApp number (no WhatsApp Business needed on their side).
+    whatsapp: { type: String, trim: true, default: '' },
+    whatsappOptIn: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

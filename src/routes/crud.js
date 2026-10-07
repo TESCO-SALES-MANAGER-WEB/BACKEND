@@ -136,6 +136,7 @@ module.exports = function makeCrud(Model, opts = {}) {
   router.put('/:id', async (req, res) => {
     try {
       const body = { ...req.body };
+      delete body._id; delete body.createdAt; delete body.updatedAt; delete body.__v; // never overwrite identity / server-managed fields
       // history is append-only (never shrink): a history-light client snapshot must not
       // replace a stored history with a shorter array. Only runs for history-bearing models.
       if (opts.historyAppendOnly && Array.isArray(body.history)) {
